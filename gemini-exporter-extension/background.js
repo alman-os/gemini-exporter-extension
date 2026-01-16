@@ -1,4 +1,12 @@
 chrome.action.onClicked.addListener((tab) => {
+  // --- NEW: Safety Check ---
+  // Prevent running on restricted chrome:// or edge:// pages
+  if (!tab.url || tab.url.startsWith("chrome://") || tab.url.startsWith("edge://") || tab.url.startsWith("about:")) {
+    console.log("⚠️ Cannot run on system pages.");
+    return;
+  }
+  // ------------------------
+
   chrome.scripting.executeScript({
     target: { tabId: tab.id },
     func: exportGeminiChat
@@ -19,9 +27,28 @@ function exportGeminiChat() {
     return results;
   };
 
+  // --- START OF NEW TITLE LOGIC (Preserving our previous fix!) ---
+  const getChatTitle = () => {
+    // Priority 1: The Visual Header
+    const visualTitle = document.querySelector('.conversation-title');
+    if (visualTitle && visualTitle.innerText.trim()) {
+      return visualTitle.innerText.trim();
+    }
+
+    // Priority 2: The Browser Tab (Fallback)
+    const docTitle = document.querySelector('title');
+    if (docTitle) {
+      const cleaned = docTitle.innerText.replace(/Google/g, '').replace(/Gemini/g, '').replace(/ - /g, '').trim();
+      if (cleaned) return cleaned;
+    }
+
+    // Priority 3: Safety Net
+    return 'Gemini_Export';
+  };
+  // --- END OF NEW TITLE LOGIC ---
+
   const getTimestamp = () => new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
-  const titleEl = document.querySelector('title');
-  const chatTitle = (titleEl ? titleEl.innerText.replace(/Gemini/g, '').trim() : 'Gemini_Export');
+  const chatTitle = getChatTitle();
 
   function htmlToMd(html) {
     let text = html;
